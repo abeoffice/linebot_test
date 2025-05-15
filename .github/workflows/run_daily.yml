@@ -1,33 +1,34 @@
-name: 補助金Bot 日次更新と通知
+name: SubsidyBot Daily Notify
 
 on:
   schedule:
-    # UTC の 0:00 → JST の 9:00 に実行
-    - cron:  '0 0 * * *'
+    # UTC 0:00 → 日本時間 9:00 に動く
+    - cron: '0 0 * * *'
+  workflow_dispatch:   # 手動実行もできるように
 
 jobs:
-  update-and-notify:
+  run:
     runs-on: ubuntu-latest
 
     steps:
-    - name: コードをチェックアウト
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Python 3.8 をセットアップ
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.8'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
 
-    - name: 依存パッケージをインストール
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4 line-bot-sdk
 
-    - name: 補助金データ取得
-      run: python fetch_grants.py
+      - name: Fetch grants
+        run: python fetch_grants.py
 
-    - name: マッチング＆Push通知
-      run: python notify_grants.py
-      env:
-        LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
-        LINE_CHANNEL_SECRET:      ${{ secrets.LINE_CHANNEL_SECRET }}
+      - name: Notify grants
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_CHANNEL_SECRET:       ${{ secrets.LINE_CHANNEL_SECRET }}
+        run: python notify_grants.py
