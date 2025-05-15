@@ -1,18 +1,19 @@
-name: SubsidyBot Daily Notify
+name: Daily subsidy notify
 
 on:
   schedule:
-    # UTC 0:00 → 日本時間 9:00 に動く
+    # UTC 0:00 → 日本時間 9:00 に毎日実行
     - cron: '0 0 * * *'
-  workflow_dispatch:   # 手動実行もできるように
+  workflow_dispatch:   # 手動実行も OK
 
 jobs:
   run:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          persist-credentials: false  # ここでデフォルト GITHUB_TOKEN を無効にする
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -24,11 +25,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4 line-bot-sdk
 
-      - name: Fetch grants
-        run: python fetch_grants.py
-
-      - name: Notify grants
+      - name: Fetch and notify
         env:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_CHANNEL_SECRET:       ${{ secrets.LINE_CHANNEL_SECRET }}
-        run: python notify_grants.py
+        run: |
+          python fetch_grants.py
+          python notify_grants.py
+
+      - name: Commit updated database
+        env:
+          ACTIONS_PAT: ${{ secrets.ACTIONS_PAT }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.db
+          git diff --quiet || git commit -m "Update grants database"
+          git push https://x-access-token:${ACTIONS_PAT}@github.com/abeoffice/subsidy-bot.git HEAD:main
