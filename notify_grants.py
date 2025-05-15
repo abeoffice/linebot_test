@@ -44,5 +44,39 @@ def push_notifications():
     if not rows:
         print("→ 該当ユーザーなし。")
 
+import os
+import sqlite3
+from datetime import datetime
+from linebot import LineBotApi
+from linebot.models import TextSendMessage
+
+TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
+
+def push_notifications():
+    today = datetime.today().strftime("%Y-%m-%d")
+    with sqlite3.connect(DB) as con:
+        cur = con.execute("""
+          SELECT u.user_id, g.title || '\\n' || g.url AS message
+          FROM users AS u
+          JOIN grants AS g
+            ON u.industry = g.industry
+          WHERE g.start_date = ?
+        """, (today,))
+        rows = cur.fetchall()
+
+    if not rows:
+        print(f"{today} にマッチした件数: 0")
+        return
+
+    line_bot_api = LineBotApi(TOKEN)
+    to_list = [r[0] for r in rows]
+    messages = [TextSendMessage(text=r[1]) for r in rows]
+
+    # マルチキャストで一斉通知
+    line_bot_api.multicast(to_list, messages)
+    print(f"{today} にマッチした件数: {len(rows)} → {len(set(to_list))} ユーザーに通知を送りました。")
+
+
+
 if __name__ == "__main__":
     push_notifications()
